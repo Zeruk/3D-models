@@ -332,6 +332,11 @@ namespace _3D_models
                                 fig.coords[i].y = fig.coords[i].y * Math.Cos(angle) + fig.coords[i].z * Math.Sin(angle);
                                 fig.coords[i].z = -fig.coords[i].y * Math.Sin(angle) + fig.coords[i].z * Math.Cos(angle);
                             }
+                            for (int i = 0; i < fig.normals.Count; i++)
+                            {
+                                fig.normals[i].y = fig.normals[i].y * Math.Cos(angle) + fig.normals[i].z * Math.Sin(angle);
+                                fig.normals[i].z = -fig.normals[i].y * Math.Sin(angle) + fig.normals[i].z * Math.Cos(angle);
+                            }
                             break;
                         }
                     case 'y':
@@ -341,6 +346,11 @@ namespace _3D_models
                                 fig.coords[i].x = fig.coords[i].x * Math.Cos(angle) + fig.coords[i].z * Math.Sin(angle);
                                 fig.coords[i].z = -fig.coords[i].x * Math.Sin(angle) + fig.coords[i].z * Math.Cos(angle);
                             }
+                            for (int i = 0; i < fig.normals.Count; i++)
+                            {
+                                fig.normals[i].y = fig.normals[i].x * Math.Cos(angle) + fig.normals[i].z * Math.Sin(angle);
+                                fig.normals[i].z = -fig.normals[i].x * Math.Sin(angle) + fig.normals[i].z * Math.Cos(angle);
+                            }
                             break;
                         }
                     case 'z':
@@ -349,6 +359,11 @@ namespace _3D_models
                             {
                                 fig.coords[i].x = fig.coords[i].x * Math.Cos(angle) - fig.coords[i].y * Math.Sin(angle);
                                 fig.coords[i].y = fig.coords[i].y * Math.Cos(angle) + fig.coords[i].x * Math.Sin(angle);
+                            }
+                            for (int i = 0; i < fig.normals.Count; i++)
+                            {
+                                fig.normals[i].x = fig.normals[i].x * Math.Cos(angle) + fig.normals[i].y * Math.Sin(angle);
+                                fig.normals[i].y = fig.normals[i].y * Math.Cos(angle) + fig.normals[i].x * Math.Sin(angle);
                             }
                             break;
                         }
@@ -368,12 +383,15 @@ namespace _3D_models
                 pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camDepth)+centerY;
             }
             graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
+            //сделать нахождение дистанций после определения видимости
             double[] distances = new double[fig.surface.Count];
             for(i = 0; i< fig.surface.Count; i++)
             {
                 distances[i] = 0;
                 for (int j = 0; j < fig.surface[i].Count; j++) distances[i] += DistanceTo(new Point3d(0,0,-camZ),fig.coords[fig.surface[i][j]]);
             }
+
+
             int max=-1,lastnMax= -1;
             List<int> been = new List<int>();
             for (int n=0; n < fig.surface.Count; n++)
@@ -418,6 +436,11 @@ namespace _3D_models
         {
             return Math.Sqrt((point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z));
             //throw new NotImplementedException();
+        }
+
+        private double CosViaVectors(Point3d p1, Point3d p2)
+        {
+            return ((p1.x * p2.x + p1.y * p2.y + p1.z + p2.z) /(Math.Sqrt(p1.x * p1.x + p1.y * p1.y + p1.z + p1.z)*Math.Sqrt(p2.x * p2.x + p2.y * p2.y + p2.z + p2.z)));
         }
     }
 }
