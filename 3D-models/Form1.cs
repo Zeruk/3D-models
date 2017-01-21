@@ -32,6 +32,7 @@ namespace _3D_models
         public class Figure
         {
             public List<List<int>> surface;
+            public List<int> normal;//соответствие нормалей и поверхностей
             public List<Point3d> coords,normals;
             public Brush upbrush;
             public Brush downbrush;
@@ -40,6 +41,7 @@ namespace _3D_models
             public Figure()
             {
                 surface = new List<List<int>>();
+                normal = new List<int>();
                 coords = new List<Point3d>();
                 normals = new List<Point3d>();
                 upbrush = Brushes.Bisque;
@@ -226,7 +228,7 @@ namespace _3D_models
                                     //ncoord++;
                                     break;
                                 }
-                            //TODO:запись нормали
+                            //TODO:запись нормали (DONE)
                             case "vn":
                                 {
                                     //x
