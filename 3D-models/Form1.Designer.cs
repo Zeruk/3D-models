@@ -50,6 +50,7 @@
             this.timer2 = new System.Windows.Forms.Timer(this.components);
             this.numericUpDown1 = new System.Windows.Forms.NumericUpDown();
             this.label2 = new System.Windows.Forms.Label();
+            this.stopToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).BeginInit();
             this.SuspendLayout();
@@ -134,7 +135,8 @@
             // 
             this.rotationToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.speedToolStripMenuItem,
-            this.directionToolStripMenuItem});
+            this.directionToolStripMenuItem,
+            this.stopToolStripMenuItem});
             this.rotationToolStripMenuItem.Name = "rotationToolStripMenuItem";
             this.rotationToolStripMenuItem.Size = new System.Drawing.Size(64, 20);
             this.rotationToolStripMenuItem.Text = "Rotation";
@@ -145,7 +147,7 @@
             this.upToolStripMenuItem,
             this.downToolStripMenuItem});
             this.speedToolStripMenuItem.Name = "speedToolStripMenuItem";
-            this.speedToolStripMenuItem.Size = new System.Drawing.Size(106, 22);
+            this.speedToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.speedToolStripMenuItem.Text = "Speed";
             // 
             // upToolStripMenuItem
@@ -169,7 +171,7 @@
             this.yToolStripMenuItem,
             this.zToolStripMenuItem});
             this.directionToolStripMenuItem.Name = "directionToolStripMenuItem";
-            this.directionToolStripMenuItem.Size = new System.Drawing.Size(106, 22);
+            this.directionToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.directionToolStripMenuItem.Text = "Axis";
             // 
             // xToolStripMenuItem
@@ -237,6 +239,13 @@
             this.label2.TabIndex = 3;
             this.label2.Text = "CamZ:";
             // 
+            // stopToolStripMenuItem
+            // 
+            this.stopToolStripMenuItem.Name = "stopToolStripMenuItem";
+            this.stopToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.stopToolStripMenuItem.Text = "Stop";
+            this.stopToolStripMenuItem.Click += new System.EventHandler(this.stopToolStripMenuItem_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -282,6 +291,7 @@
         private System.Windows.Forms.Timer timer2;
         private System.Windows.Forms.NumericUpDown numericUpDown1;
         private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.ToolStripMenuItem stopToolStripMenuItem;
     }
 }
 

@@ -15,11 +15,12 @@ namespace _3D_models
         private BufferedGraphics graphic;
         private BufferedGraphicsContext context;
         int camZ = 2, camDepth = 200, centerX, centerY;                                        //Важные переменные
-        bool painting_completed = true, is_Loading=false;
+        bool painting_completed = true, is_Loading=false, is_need_update=true; //TODO: Сделать прорисовку только по апдейту
         int timeNow = 0, frapsPerSec = 0;
         Figure Fig = new Figure();
         private char rotationAxis = 'x';
         private double rotationSpeed = 0;
+        Point3d Cam = new Point3d(0, 0, -2);
 
         /////////////////////////////////////////
         public Form1()
@@ -63,6 +64,11 @@ namespace _3D_models
                 x = 0;
                 y = 0;
                 z = 0;
+            }
+
+            public static Point3d operator +(Point3d a, Point3d b)
+            {
+                return new Point3d(a.x + b.x, a.y + b.y, a.z + b.z);
             }
         }
 
@@ -167,6 +173,11 @@ namespace _3D_models
         {
             label1.Text = Convert.ToString(frapsPerSec);
             frapsPerSec = 0;
+        }
+
+        private void stopToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            rotationSpeed = 0;
         }
 
         private bool LoadFig(Figure fig)
@@ -376,6 +387,7 @@ namespace _3D_models
             //for (int i = 0; fig.count; i++) {
             Rotation(rotationAxis, rotationSpeed,Fig);
             int i = 0;
+            double cosVal = 0;
             Point[] pict = new Point[fig.coords.Count];//, poli = new Point[fig.coords.Count];
             for (i = 0; i < fig.coords.Count; i++)
             {
@@ -383,33 +395,32 @@ namespace _3D_models
                 pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camDepth)+centerY;
             }
             graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
-            //сделать нахождение дистанций после определения видимости
+            //сделать нахождение дистанций после определения видимости?
             double[] distances = new double[fig.surface.Count];
+            //Point3d averageP = new Point3d();
             for(i = 0; i< fig.surface.Count; i++)
             {
-                distances[i] = 0;
-                for (int j = 0; j < fig.surface[i].Count; j++) distances[i] += DistanceTo(new Point3d(0,0,-camZ),fig.coords[fig.surface[i][j]]);
+                /* averageP.x = averageP.y = averageP.z = 0; //Получается неправильное отображение. Почему? непонятно
+                 for (int j = 0; j < fig.surface[i].Count; j++)
+                 {
+                     averageP += fig.coords[fig.surface[i][j]];
+                 }*/
+                // distances[i] += DistanceTo();
+                //distances[i] /= fig.surface[i].Count;
+                for (int j = 0; j < fig.surface[i].Count; j++)
+                {
+                    distances[i] += DistanceTo(Cam, fig.coords[fig.surface[i][j]]);
+                }
             }
-
 
             int max=-1,lastnMax= -1;
             List<int> been = new List<int>();
             for (int n=0; n < fig.surface.Count; n++)
             {
-                /*
                 max = -1;
                 for (i = 0; i < fig.surface.Count; i++)
                 {
-                    if((max == -1 || distances[i]>distances[max]) && (lastnMax == -1 || distances[i]<=distances[lastnMax]) && i != lastnMax )
-                    {
-                        max = i;
-                    }
-                }
-                lastnMax = max;*/
-                max = -1;
-                for (i = 0; i < fig.surface.Count; i++)
-                {
-                    if ((max == -1 || distances[max] < distances[i]) && (!been.Contains(i)))
+                    if ((max == -1 || distances[max] <= distances[i]) && (!been.Contains(i)))
                     {
                         max = i;
                     }
@@ -434,7 +445,7 @@ namespace _3D_models
 
         private double DistanceTo(Point3d point3d1, Point3d point3d2)
         {
-            return Math.Sqrt((point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z));
+            return /*Math.Sqrt(*/(point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z);
             //throw new NotImplementedException();
         }
 
