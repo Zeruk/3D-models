@@ -314,7 +314,6 @@ namespace _3D_models
                                                 while (first[++j] != '/' && j < first.Length) ;
                                                 fig.surface[fig.surface.Count - 1].Add(new int());
                                                 fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] =-1+ Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
-                                                j = -1;
                                                 while (first[++j] != '/') ;
                                                 fig.normal[fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1))-1;
                                                 first = "";
