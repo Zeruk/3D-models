@@ -15,8 +15,8 @@ namespace _3D_models
         private BufferedGraphics graphic;
         private BufferedGraphicsContext context;
         int camZ = 2, camDepth = 200, centerX, centerY;                                        //Важные переменные
-        bool painting_completed = true, is_Loading=false, is_need_update=true; //TODO: Сделать прорисовку только по апдейту
-        int timeNow = 0, frapsPerSec = 0;
+        bool painting_completed = true, is_Loading=false; 
+        int frapsPerSec = 0;
         Figure Fig = new Figure();
         private char rotationAxis = 'x';
         private double rotationSpeed = 0;
@@ -45,7 +45,7 @@ namespace _3D_models
                 normal = new List<int>();
                 coords = new List<Point3d>();
                 normals = new List<Point3d>();
-                color = Color.Beige;
+                color = Color.Bisque;
             }
         }
 
@@ -91,9 +91,21 @@ namespace _3D_models
             Fig.surface[0][2] = 2;
             Fig.surface[0].Add(new int());
             Fig.surface[0][3] = 3;
+            Fig.surface.Add(new List<int>());
+            Fig.surface[1].Add(new int());
+            Fig.surface[1][0] = 0;
+            Fig.surface[1].Add(new int());
+            Fig.surface[1][1] = 1;
+            Fig.surface[1].Add(new int());
+            Fig.surface[1][2] = 2;
+            Fig.surface[1].Add(new int());
+            Fig.surface[1][3] = 3;
             Fig.normals.Add(new Point3d(0, 0, -1));
+            Fig.normals.Add(new Point3d(0, 0, 1));
             Fig.normal.Add(new int());
             Fig.normal[0] = 0;
+            Fig.normal.Add(new int());
+            Fig.normal[1] = 1;
             Painting(Fig);
             timer1.Enabled = true;
         }
@@ -130,45 +142,49 @@ namespace _3D_models
             Application.Exit();
         }
 
-        private void xToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            rotationAxis = 'x';
-            yToolStripMenuItem.Checked = false;
-            zToolStripMenuItem.Checked = false;
-        }
-
-        private void yToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            rotationAxis = 'y';
-            xToolStripMenuItem.Checked = false;
-            zToolStripMenuItem.Checked = false;
-        }
-
-        private void zToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            rotationAxis = 'z';
-            xToolStripMenuItem.Checked = false;
-            yToolStripMenuItem.Checked = false;
-        }
-
         private void fromFileToolStripMenuItem_Click(object sender, EventArgs e)
         {
             is_Loading = true;
         }
 
-        private void upToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            rotationSpeed += 0.01;
-        }
-
-        private void downToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            rotationSpeed -= 0.01;
-        }
-
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
         {
             camZ = Convert.ToInt32(numericUpDown1.Value);
+        }
+
+        private void radioButton1_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioButton1.Checked)
+            {
+                radioButton2.Checked = false;
+                radioButton3.Checked = false;
+                rotationAxis = 'x';
+            }
+        }
+
+        private void radioButton2_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioButton2.Checked)
+            {
+                radioButton1.Checked = false;
+                radioButton3.Checked = false;
+                rotationAxis = 'y';
+            }
+        }
+
+        private void radioButton3_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioButton3.Checked)
+            {
+                radioButton2.Checked = false;
+                radioButton1.Checked = false;
+                rotationAxis = 'z';
+            }
+        }
+
+        private void numericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+            rotationSpeed = Convert.ToDouble(numericUpDown2.Value) / 100;
         }
 
         private void timer2_Tick(object sender, EventArgs e)
@@ -360,7 +376,7 @@ namespace _3D_models
                             }
                             for (int i = 0; i < fig.normals.Count; i++)
                             {
-                                fig.normals[i].y = (fig.normals[i].x * Math.Cos(angle)) + (fig.normals[i].z * Math.Sin(angle));
+                                fig.normals[i].x = (fig.normals[i].x * Math.Cos(angle)) + (fig.normals[i].z * Math.Sin(angle));
                                 fig.normals[i].z = (-fig.normals[i].x * Math.Sin(angle)) + (fig.normals[i].z * Math.Cos(angle));
                             }
                             break;
@@ -421,7 +437,7 @@ namespace _3D_models
                 max = -1;
                 for (i = 0; i < fig.surface.Count; i++)
                 {
-                    if ((max == -1 || distances[max] <= distances[i]) && (!been.Contains(i)))
+                    if ((max == -1 || distances[max] < distances[i]) && (!been.Contains(i)))
                     {
                         max = i;
                     }
@@ -439,8 +455,8 @@ namespace _3D_models
                     cosVal = (CosViaVectors(SunVetor, fig.normals[fig.normal[max]])+1)/2;
                     brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(fig.color.R * cosVal), Convert.ToInt16(fig.color.G * cosVal), Convert.ToInt16(fig.color.B * cosVal)));
                     graphic.Graphics.FillPolygon(brushForColor, poli);
-                    graphic.Graphics.DrawPolygon(Pens.Brown, poli);
-                    graphic.Render();
+                    graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
+                    //graphic.Render(); //for debugging
                     Array.Clear(poli, 0, fig.surface[max].Count);
                 }
             }
