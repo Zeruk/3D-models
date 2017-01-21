@@ -198,6 +198,11 @@ namespace _3D_models
             rotationSpeed = 0;
         }
 
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Autor: Shevchenko I.D. (Zeruk) 2017 \nMailTo: id.shev@yandex.ru");
+        }
+
         private bool LoadFig(Figure fig)
         {
             openFileDialog1.Title = "Выберите файл";
