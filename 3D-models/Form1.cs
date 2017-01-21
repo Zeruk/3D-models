@@ -20,7 +20,7 @@ namespace _3D_models
         Figure Fig = new Figure();
         private char rotationAxis = 'x';
         private double rotationSpeed = 0;
-        Point3d Cam = new Point3d(0, 0, -2);
+        Point3d Cam = new Point3d(0, 0, -2), SunVetor = new Point3d(0, -1, 0);
 
         /////////////////////////////////////////
         public Form1()
@@ -37,7 +37,7 @@ namespace _3D_models
             public List<Point3d> coords,normals;
             public Brush upbrush;
             public Brush downbrush;
-
+            public Color color;
 
             public Figure()
             {
@@ -45,8 +45,7 @@ namespace _3D_models
                 normal = new List<int>();
                 coords = new List<Point3d>();
                 normals = new List<Point3d>();
-                upbrush = Brushes.Bisque;
-                downbrush = Brushes.Gray;
+                color = Color.Beige;
             }
         }
 
@@ -92,6 +91,9 @@ namespace _3D_models
             Fig.surface[0][2] = 2;
             Fig.surface[0].Add(new int());
             Fig.surface[0][3] = 3;
+            Fig.normals.Add(new Point3d(0, 0, -1));
+            Fig.normal.Add(new int());
+            Fig.normal[0] = 0;
             Painting(Fig);
             timer1.Enabled = true;
         }
@@ -209,7 +211,7 @@ namespace _3D_models
                     if(first != "#"){
                         switch (first)
                         {
-                            case "v":{
+                            case "v": {
                                     //x
                                     first = "";
                                     i = 2;
@@ -240,8 +242,7 @@ namespace _3D_models
                                     break;
                                 }
                             //TODO:запись нормали (DONE)
-                            case "vn":
-                                {
+                            case "vn":{
                                     //x
                                     first = "";
                                     i = 3;
@@ -271,7 +272,7 @@ namespace _3D_models
                                     //ncoord++;
                                     break;
                                 }
-                            case "f":{
+                            case "f": {
                                     i = 0; int j;
                                     fig.surface.Add(new List<int>());
                                     fig.normal.Add(new int());
@@ -286,7 +287,7 @@ namespace _3D_models
                                                 while (first[++j] != '/');
                                                 fig.surface[fig.surface.Count-1].Add(new int());
                                                 fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] = -1 + Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
-                                                fig.normal[fig.surface.Count - 1]  = Convert.ToInt32(first.Substring(j + 2));
+                                                fig.normal[fig.surface.Count - 1]  = Convert.ToInt32(first.Substring(j + 2))-1;
                                                 first = "";
                                                 i++;
                                             }
@@ -299,7 +300,7 @@ namespace _3D_models
                                                 fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] =-1+ Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
                                                 j = -1;
                                                 while (first[++j] != '/') ;
-                                                fig.normal[fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1));
+                                                fig.normal[fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1))-1;
                                                 first = "";
                                                 i++;
                                             }
@@ -359,8 +360,8 @@ namespace _3D_models
                             }
                             for (int i = 0; i < fig.normals.Count; i++)
                             {
-                                fig.normals[i].y = fig.normals[i].x * Math.Cos(angle) + fig.normals[i].z * Math.Sin(angle);
-                                fig.normals[i].z = -fig.normals[i].x * Math.Sin(angle) + fig.normals[i].z * Math.Cos(angle);
+                                fig.normals[i].y = (fig.normals[i].x * Math.Cos(angle)) + (fig.normals[i].z * Math.Sin(angle));
+                                fig.normals[i].z = (-fig.normals[i].x * Math.Sin(angle)) + (fig.normals[i].z * Math.Cos(angle));
                             }
                             break;
                         }
@@ -373,7 +374,7 @@ namespace _3D_models
                             }
                             for (int i = 0; i < fig.normals.Count; i++)
                             {
-                                fig.normals[i].x = fig.normals[i].x * Math.Cos(angle) + fig.normals[i].y * Math.Sin(angle);
+                                fig.normals[i].x = fig.normals[i].x * Math.Cos(angle) - fig.normals[i].y * Math.Sin(angle);
                                 fig.normals[i].y = fig.normals[i].y * Math.Cos(angle) + fig.normals[i].x * Math.Sin(angle);
                             }
                             break;
@@ -388,6 +389,7 @@ namespace _3D_models
             Rotation(rotationAxis, rotationSpeed,Fig);
             int i = 0;
             double cosVal = 0;
+            Brush brushForColor;
             Point[] pict = new Point[fig.coords.Count];//, poli = new Point[fig.coords.Count];
             for (i = 0; i < fig.coords.Count; i++)
             {
@@ -395,7 +397,7 @@ namespace _3D_models
                 pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camDepth)+centerY;
             }
             graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
-            //сделать нахождение дистанций после определения видимости?
+            //сделать нахождение дистанций после определения видимости? Решениие:Нет
             double[] distances = new double[fig.surface.Count];
             //Point3d averageP = new Point3d();
             for(i = 0; i< fig.surface.Count; i++)
@@ -412,8 +414,7 @@ namespace _3D_models
                     distances[i] += DistanceTo(Cam, fig.coords[fig.surface[i][j]]);
                 }
             }
-
-            int max=-1,lastnMax= -1;
+            int max = -1;
             List<int> been = new List<int>();
             for (int n=0; n < fig.surface.Count; n++)
             {
@@ -427,14 +428,21 @@ namespace _3D_models
                 }
                 been.Add(new int());
                 been[been.Count - 1] = max;
-                Point[] poli = new Point[fig.surface[max].Count];
-                for(int j = 0; j < fig.surface[max].Count; j++)
+                double d = CosViaVectors(fig.normals[fig.normal[max]], Cam);
+                if (CosViaVectors(fig.normals[fig.normal[max]],Cam) > 0)
                 {
-                    poli[j] = pict[fig.surface[max][j]];
+                    Point[] poli = new Point[fig.surface[max].Count];
+                    for (int j = 0; j < fig.surface[max].Count; j++)
+                    {
+                        poli[j] = pict[fig.surface[max][j]];
+                    }
+                    cosVal = (CosViaVectors(SunVetor, fig.normals[fig.normal[max]])+1)/2;
+                    brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(fig.color.R * cosVal), Convert.ToInt16(fig.color.G * cosVal), Convert.ToInt16(fig.color.B * cosVal)));
+                    graphic.Graphics.FillPolygon(brushForColor, poli);
+                    graphic.Graphics.DrawPolygon(Pens.Brown, poli);
+                    graphic.Render();
+                    Array.Clear(poli, 0, fig.surface[max].Count);
                 }
-                graphic.Graphics.FillPolygon(fig.upbrush, poli);
-                graphic.Graphics.DrawPolygon(Pens.Brown, poli);
-                Array.Clear(poli, 0, fig.surface[max].Count);
             }
             
             graphic.Render();
@@ -451,7 +459,7 @@ namespace _3D_models
 
         private double CosViaVectors(Point3d p1, Point3d p2)
         {
-            return ((p1.x * p2.x + p1.y * p2.y + p1.z + p2.z) /(Math.Sqrt(p1.x * p1.x + p1.y * p1.y + p1.z + p1.z)*Math.Sqrt(p2.x * p2.x + p2.y * p2.y + p2.z + p2.z)));
+            return ((p1.x * p2.x + p1.y * p2.y + p1.z * p2.z)/(Math.Sqrt((p1.x * p1.x) + (p1.y * p1.y) + (p1.z * p1.z))*Math.Sqrt((p2.x * p2.x) + (p2.y * p2.y) + (p2.z * p2.z))));
         }
     }
 }
