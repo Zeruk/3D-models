@@ -263,18 +263,19 @@ namespace _3D_models
                             case "f":{
                                     i = 0; int j;
                                     fig.surface.Add(new List<int>());
+                                    fig.normal.Add(new int());
                                     while (i < s.Length)
                                     {
                                         if (s[i] == ' ' || i==s.Length-1)
                                         {
+                                            if (i == s.Length - 1) first += s[i];
                                             if (first.Contains("//"))
                                             {
                                                 j = -1; 
                                                 while (first[++j] != '/');
                                                 fig.surface[fig.surface.Count-1].Add(new int());
                                                 fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] = -1 + Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
-                                                //нормаль[nsurf].Add(new int() = Convert.ToInt32(first.Substring(j+2)));
-
+                                                fig.normal[fig.surface.Count - 1]  = Convert.ToInt32(first.Substring(j + 2));
                                                 first = "";
                                                 i++;
                                             }
@@ -287,8 +288,7 @@ namespace _3D_models
                                                 fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] =-1+ Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
                                                 j = -1;
                                                 while (first[++j] != '/') ;
-                                                //нормаль[nsurf].Add(new int() = Convert.ToInt32(first.Substring(j+2)));
-
+                                                fig.normal[fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1));
                                                 first = "";
                                                 i++;
                                             }
