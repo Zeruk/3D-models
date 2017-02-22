@@ -6,7 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Windows.Forms;
 namespace _3D_models
 {
@@ -15,13 +15,15 @@ namespace _3D_models
         private BufferedGraphics graphic;
         private BufferedGraphicsContext context;
         int camZ = 2, camDepth = 200, centerX, centerY;                                        //Важные переменные
-        bool painting_completed = true, is_Loading=false; 
+        bool painting_completed = true, is_Loading=false, size_Changed=false; 
         int frapsPerSec = 0;
-        Figure Fig = new Figure();
+        Figure Fig = new Figure(), Fig_Or;
         private char rotationAxis = 'x';
         private double rotationSpeed = 0;
         Point3d Cam = new Point3d(0, 0, -2), SunVetor = new Point3d(0, -1, 0);
-
+        public Thread PaintTHR;
+        public Thread RotationTHR;
+        public Thread LoadFigTHR;
         /////////////////////////////////////////
         public Form1()
         {
@@ -47,6 +49,29 @@ namespace _3D_models
                 normals = new List<Point3d>();
                 color = Color.Bisque;
             }
+            public Figure(Figure f)
+            {
+                int i, j;
+                surface = new List<List<int>>();
+                for(i =0; i<f.surface.Count(); i++)
+                {
+                    surface.Add(new List<int>());
+                    surface[i].AddRange(f.surface[i]);
+                }
+                normal = new List<int>();
+                normal.AddRange(f.normal);
+                coords = new List<Point3d>();
+                for (i = 0; i < f.coords.Count(); i++)
+                {
+                    coords.Add(new Point3d(f.coords[i]));
+                }
+                normals = new List<Point3d>();
+                for(i=0; i < f.normals.Count(); i++)
+                {
+                    normals.Add(new Point3d(f.normals[i]));
+                }
+                color = Color.Bisque;
+            }
         }
 
         public class Point3d
@@ -63,6 +88,12 @@ namespace _3D_models
                 x = 0;
                 y = 0;
                 z = 0;
+            }
+            public Point3d(Point3d P)
+            {
+                x = P.x;
+                y = P.y;
+                z = P.z;
             }
 
             public static Point3d operator +(Point3d a, Point3d b)
@@ -106,25 +137,29 @@ namespace _3D_models
             Fig.normal[0] = 0;
             Fig.normal.Add(new int());
             Fig.normal[1] = 1;
-            Painting(Fig);
+            //**************************************
+            Fig_Or = new Figure(Fig);
+            PaintTHR = new Thread(Painting);
+            RotationTHR = new Thread(Rotation);
+            Thread LoadFigTHR = new Thread(LoadFig);
+            LoadFigTHR.SetApartmentState(ApartmentState.STA);
+            PaintTHR.Start();
+            RotationTHR.Start();
             timer1.Enabled = true;
         }
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            if (painting_completed && !is_Loading)
-            {
-                painting_completed = false;
-                Painting(Fig);
-            }
-            else if (is_Loading)
-            {
-                timer1.Enabled = false;
-                LoadFig(Fig);
-            }
+            //
         }
         
         private void Form1_Resize(object sender, EventArgs e)
+        {
+            Thread Resizing = new Thread(Resize_graphics);
+            Resizing.Start();
+        }
+
+        private void Resize_graphics()
         {
             centerX = Convert.ToInt32(Width / 2);
             centerY = Convert.ToInt32(Height / 2);
@@ -135,6 +170,7 @@ namespace _3D_models
                 graphic = null;
             }
             graphic = context.Allocate(this.CreateGraphics(), new Rectangle(0, 0, this.Width, this.Height));
+            Thread.Sleep(0);
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
@@ -178,18 +214,18 @@ namespace _3D_models
             {
                 radioButton2.Checked = false;
                 radioButton1.Checked = false;
-                rotationAxis = 'z';
+                rotationAxis = 'z';                
             }
         }
 
         private void numericUpDown2_ValueChanged(object sender, EventArgs e)
         {
-            rotationSpeed = Convert.ToDouble(numericUpDown2.Value) / 100;
+            rotationSpeed = Convert.ToDouble(numericUpDown2.Value) / 200;
         }
 
         private void timer2_Tick(object sender, EventArgs e)
-        {
-            label1.Text = Convert.ToString(frapsPerSec);
+        { 
+            label1.Text = Convert.ToString(frapsPerSec)+" FPS";
             frapsPerSec = 0;
         }
 
@@ -203,19 +239,28 @@ namespace _3D_models
             MessageBox.Show("Autor: Shevchenko I.D. (Zeruk) 2017 \nMailTo: id.shev@yandex.ru");
         }
 
-        private bool LoadFig(Figure fig)
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            PaintTHR.Abort();
+            RotationTHR.Abort();
+        }
+
+        private void LoadFig()
+        {
+            PaintTHR.Suspend();
+            RotationTHR.Suspend();
+            rotationAxis = 'l';
             openFileDialog1.Title = "Выберите файл";
             openFileDialog1.Multiselect = false;
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                fig.coords.Clear();
-                fig.normals.Clear();
-                for(int iii = 0; iii < fig.surface.Count; iii++)
+                Fig.coords.Clear();
+                Fig.normals.Clear();
+                for(int iii = 0; iii < Fig.surface.Count; iii++)
                 {
-                    fig.surface[iii].Clear();
+                    Fig.surface[iii].Clear();
                 }
-                fig.surface.Clear();
+                Fig.surface.Clear();
                 string first, s;
                 int i;// ,ncoord = 0, nsurf = 0, nnsurf;
                 StreamReader inStream = new StreamReader(openFileDialog1.FileName);
@@ -241,8 +286,8 @@ namespace _3D_models
                                         first += s[i];
                                         i++;
                                     }
-                                    fig.coords.Add(new Point3d());
-                                    fig.coords[fig.coords.Count-1].x = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);//[ncoord]
+                                    Fig.coords.Add(new Point3d());
+                                    Fig.coords[Fig.coords.Count-1].x = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);//[ncoord]
                                     //y
                                     first = ""; i++;
                                     while (i < s.Length && s[i] != ' ')
@@ -250,7 +295,7 @@ namespace _3D_models
                                         first += s[i];
                                         i++;
                                     }
-                                    fig.coords[fig.coords.Count - 1].y = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                    Fig.coords[Fig.coords.Count - 1].y = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
                                     //z
                                     first = ""; i++;
                                     while (i < s.Length && s[i] != ' ')
@@ -258,7 +303,7 @@ namespace _3D_models
                                         first += s[i];
                                         i++;
                                     }
-                                    fig.coords[fig.coords.Count - 1].z = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                    Fig.coords[Fig.coords.Count - 1].z = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
                                     //ncoord++;
                                     break;
                                 }
@@ -272,8 +317,8 @@ namespace _3D_models
                                         first += s[i];
                                         i++;
                                     }
-                                    fig.normals.Add(new Point3d());
-                                    fig.normals[fig.normals.Count - 1].x = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                    Fig.normals.Add(new Point3d());
+                                    Fig.normals[Fig.normals.Count - 1].x = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
                                     //y
                                     first = ""; i++;
                                     while (i < s.Length && s[i] != ' ')
@@ -281,7 +326,7 @@ namespace _3D_models
                                         first += s[i];
                                         i++;
                                     }
-                                    fig.normals[fig.normals.Count - 1].y = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                    Fig.normals[Fig.normals.Count - 1].y = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
                                     //z
                                     first = ""; i++;
                                     while (i < s.Length && s[i] != ' ')
@@ -289,14 +334,14 @@ namespace _3D_models
                                         first += s[i];
                                         i++;
                                     }
-                                    fig.normals[fig.normals.Count - 1].z = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                    Fig.normals[Fig.normals.Count - 1].z = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
                                     //ncoord++;
                                     break;
                                 }
                             case "f": {
                                     i = 0; int j;
-                                    fig.surface.Add(new List<int>());
-                                    fig.normal.Add(new int());
+                                    Fig.surface.Add(new List<int>());
+                                    Fig.normal.Add(new int());
                                     while (i < s.Length)
                                     {
                                         if (s[i] == ' ' || i==s.Length-1)
@@ -306,9 +351,9 @@ namespace _3D_models
                                             {
                                                 j = -1; 
                                                 while (first[++j] != '/');
-                                                fig.surface[fig.surface.Count-1].Add(new int());
-                                                fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] = -1 + Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
-                                                fig.normal[fig.surface.Count - 1]  = Convert.ToInt32(first.Substring(j + 2))-1;
+                                                Fig.surface[Fig.surface.Count-1].Add(new int());
+                                                Fig.surface[Fig.surface.Count - 1][Fig.surface[Fig.surface.Count - 1].Count - 1] = -1 + Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
+                                                Fig.normal[Fig.surface.Count - 1]  = Convert.ToInt32(first.Substring(j + 2))-1;
                                                 first = "";
                                                 i++;
                                             }
@@ -317,10 +362,10 @@ namespace _3D_models
                                             {
                                                 j = -1;
                                                 while (first[++j] != '/' && j < first.Length) ;
-                                                fig.surface[fig.surface.Count - 1].Add(new int());
-                                                fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] =-1+ Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
+                                                Fig.surface[Fig.surface.Count - 1].Add(new int());
+                                                Fig.surface[Fig.surface.Count - 1][Fig.surface[Fig.surface.Count - 1].Count - 1] =-1+ Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
                                                 while (first[++j] != '/') ;
-                                                fig.normal[fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1))-1;
+                                                Fig.normal[Fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1))-1;
                                                 first = "";
                                                 i++;
                                             }
@@ -345,130 +390,149 @@ namespace _3D_models
                     }
                 }
                 inStream.Close();
+                Fig_Or = new Figure(Fig);
             }
+            PaintTHR.Resume();
+            RotationTHR.Resume();
             is_Loading = false;
-            timer1.Enabled = true; 
-            return true;
+            timer1.Enabled = true;
+            Thread.Sleep(0);
         }
 
-        private void Rotation(char vector, double angle, Figure fig)
+        private void Rotation()
         {
-            if (angle != 0)
+            double angle = 0; char lastDir = 'x';
+            while (true)
             {
-                switch (vector)
+                if (rotationSpeed != 0)
                 {
-                    case 'x':
+                    if (rotationAxis != lastDir)
+                    {
+                        Fig_Or = new Figure(Fig);
+                        
+                        lastDir = rotationAxis;
+                        angle = 0;
+                    }
+                    else
+                    {
+                        angle += rotationSpeed;
+                        switch (rotationAxis)
                         {
-                            for (int i = 0; i < fig.coords.Count; i++)
-                            {
-                                fig.coords[i].y = fig.coords[i].y * Math.Cos(angle) + fig.coords[i].z * Math.Sin(angle);
-                                fig.coords[i].z = -fig.coords[i].y * Math.Sin(angle) + fig.coords[i].z * Math.Cos(angle);
-                            }
-                            for (int i = 0; i < fig.normals.Count; i++)
-                            {
-                                fig.normals[i].y = fig.normals[i].y * Math.Cos(angle) + fig.normals[i].z * Math.Sin(angle);
-                                fig.normals[i].z = -fig.normals[i].y * Math.Sin(angle) + fig.normals[i].z * Math.Cos(angle);
-                            }
-                            break;
+                            case 'x':
+                                {
+                                    for (int i = 0; i < Fig_Or.coords.Count; i++)
+                                    {
+                                        Fig.coords[i].y = Fig_Or.coords[i].y * Math.Cos(angle) + Fig_Or.coords[i].z * Math.Sin(angle);
+                                        Fig.coords[i].z = -Fig_Or.coords[i].y * Math.Sin(angle) + Fig_Or.coords[i].z * Math.Cos(angle);
+                                    }
+                                    for (int i = 0; i < Fig_Or.normals.Count; i++)
+                                    {
+                                        Fig.normals[i].y = Fig_Or.normals[i].y * Math.Cos(angle) + Fig_Or.normals[i].z * Math.Sin(angle);
+                                        Fig.normals[i].z = -Fig_Or.normals[i].y * Math.Sin(angle) + Fig_Or.normals[i].z * Math.Cos(angle);
+                                    }
+                                    break;
+                                }
+                            case 'y':
+                                {
+                                    for (int i = 0; i < Fig_Or.coords.Count; i++)
+                                    {
+                                        Fig.coords[i].x = Fig_Or.coords[i].x * Math.Cos(angle) + Fig_Or.coords[i].z * Math.Sin(angle);
+                                        Fig.coords[i].z = -Fig_Or.coords[i].x * Math.Sin(angle) + Fig_Or.coords[i].z * Math.Cos(angle);
+                                    }
+                                    for (int i = 0; i < Fig_Or.normals.Count; i++)
+                                    {
+                                        Fig.normals[i].x = (Fig_Or.normals[i].x * Math.Cos(angle)) + (Fig_Or.normals[i].z * Math.Sin(angle));
+                                        Fig.normals[i].z = (-Fig_Or.normals[i].x * Math.Sin(angle)) + (Fig_Or.normals[i].z * Math.Cos(angle));
+                                    }
+                                    break;
+                                }
+                            case 'z':
+                                {
+                                    for (int i = 0; i < Fig_Or.coords.Count; i++)
+                                    {
+                                        Fig.coords[i].x = Fig_Or.coords[i].x * Math.Cos(angle) - Fig_Or.coords[i].y * Math.Sin(angle);
+                                        Fig.coords[i].y = Fig_Or.coords[i].y * Math.Cos(angle) + Fig_Or.coords[i].x * Math.Sin(angle);
+                                    }
+                                    for (int i = 0; i < Fig_Or.normals.Count; i++)
+                                    {
+                                        Fig.normals[i].x = Fig_Or.normals[i].x * Math.Cos(angle) - Fig_Or.normals[i].y * Math.Sin(angle);
+                                        Fig.normals[i].y = Fig_Or.normals[i].y * Math.Cos(angle) + Fig_Or.normals[i].x * Math.Sin(angle);
+                                    }
+                                    break;
+                                }
                         }
-                    case 'y':
-                        {
-                            for (int i = 0; i < fig.coords.Count; i++)
-                            {
-                                fig.coords[i].x = fig.coords[i].x * Math.Cos(angle) + fig.coords[i].z * Math.Sin(angle);
-                                fig.coords[i].z = -fig.coords[i].x * Math.Sin(angle) + fig.coords[i].z * Math.Cos(angle);
-                            }
-                            for (int i = 0; i < fig.normals.Count; i++)
-                            {
-                                fig.normals[i].x = (fig.normals[i].x * Math.Cos(angle)) + (fig.normals[i].z * Math.Sin(angle));
-                                fig.normals[i].z = (-fig.normals[i].x * Math.Sin(angle)) + (fig.normals[i].z * Math.Cos(angle));
-                            }
-                            break;
-                        }
-                    case 'z':
-                        {
-                            for (int i = 0; i < fig.coords.Count; i++)
-                            {
-                                fig.coords[i].x = fig.coords[i].x * Math.Cos(angle) - fig.coords[i].y * Math.Sin(angle);
-                                fig.coords[i].y = fig.coords[i].y * Math.Cos(angle) + fig.coords[i].x * Math.Sin(angle);
-                            }
-                            for (int i = 0; i < fig.normals.Count; i++)
-                            {
-                                fig.normals[i].x = fig.normals[i].x * Math.Cos(angle) - fig.normals[i].y * Math.Sin(angle);
-                                fig.normals[i].y = fig.normals[i].y * Math.Cos(angle) + fig.normals[i].x * Math.Sin(angle);
-                            }
-                            break;
-                        }
+                    }
+                    
                 }
+                Thread.Sleep(20);
             }
         }
 
-        private bool Painting(Figure fig)
+        private void Painting()
         {
-            //for (int i = 0; fig.count; i++) {
-            Rotation(rotationAxis, rotationSpeed,Fig);
-            int i = 0;
-            double cosVal = 0;
-            Brush brushForColor;
-            Point[] pict = new Point[fig.coords.Count];//, poli = new Point[fig.coords.Count];
-            for (i = 0; i < fig.coords.Count; i++)
+            while (true)
             {
-                pict[i].X = Convert.ToInt32(fig.coords[i].x / (fig.coords[i].z + camZ) * camDepth)+centerX;
-                pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camDepth)+centerY;
-            }
-            graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
-            //сделать нахождение дистанций после определения видимости? Решениие:Нет
-            double[] distances = new double[fig.surface.Count];
-            //Point3d averageP = new Point3d();
-            for(i = 0; i< fig.surface.Count; i++)
-            {
-                /* averageP.x = averageP.y = averageP.z = 0; //Получается неправильное отображение. Почему? непонятно
-                 for (int j = 0; j < fig.surface[i].Count; j++)
-                 {
-                     averageP += fig.coords[fig.surface[i][j]];
-                 }*/
-                // distances[i] += DistanceTo();
-                //distances[i] /= fig.surface[i].Count;
-                for (int j = 0; j < fig.surface[i].Count; j++)
+
+                int i = 0;
+                double cosVal = 0;
+                Brush brushForColor;
+                Point[] pict = new Point[Fig.coords.Count];//, poli = new Point[fig.coords.Count];
+                for (i = 0; i < Fig.coords.Count; i++)
                 {
-                    distances[i] += DistanceTo(Cam, fig.coords[fig.surface[i][j]]);
+                    pict[i].X = Convert.ToInt32(Fig.coords[i].x / (Fig.coords[i].z + camZ) * camDepth) + centerX;
+                    pict[i].Y = Convert.ToInt32(Fig.coords[i].y / (Fig.coords[i].z + camZ) * camDepth) + centerY;
                 }
-            }
-            int max = -1;
-            List<int> been = new List<int>();
-            for (int n=0; n < fig.surface.Count; n++)
-            {
-                max = -1;
-                for (i = 0; i < fig.surface.Count; i++)
+                graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
+                List<double> distances = new List<double>();
+                for (i = 0; i < Fig.surface.Count; i++)
                 {
-                    if ((max == -1 || distances[max] < distances[i]) && (!been.Contains(i)))
+                    distances.Add(new double());
+                    for (int j = 0; j < Fig.surface[i].Count; j++)
                     {
-                        max = i;
+                        distances[i] += DistanceTo(Cam, Fig.coords[Fig.surface[i][j]]);
                     }
                 }
-                been.Add(new int());
-                been[been.Count - 1] = max;
-                double d = CosViaVectors(fig.normals[fig.normal[max]], Cam);
-                if (CosViaVectors(fig.normals[fig.normal[max]],Cam) > 0)
+                int max = -1;
+                List<int> been = new List<int>();
+                for (int n = 0; n < Fig.surface.Count; n++)
                 {
-                    Point[] poli = new Point[fig.surface[max].Count];
-                    for (int j = 0; j < fig.surface[max].Count; j++)
+                    max = -1;
+                    for (i = 0; i < Fig.surface.Count; i++)
                     {
-                        poli[j] = pict[fig.surface[max][j]];
+                        if ((max == -1 || distances[max] < distances[i]) && (!been.Contains(i)))
+                        {
+                            max = i;
+                        }
                     }
-                    cosVal = (CosViaVectors(SunVetor, fig.normals[fig.normal[max]])+1)/2;
-                    brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(fig.color.R * cosVal), Convert.ToInt16(fig.color.G * cosVal), Convert.ToInt16(fig.color.B * cosVal)));
-                    graphic.Graphics.FillPolygon(brushForColor, poli);
-                    graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
-                    //graphic.Render(); //for debugging
-                    Array.Clear(poli, 0, fig.surface[max].Count);
+                    been.Add(new int());
+                    been[been.Count - 1] = max;
+                    double d = CosViaVectors(Fig.normals[Fig.normal[max]], Cam);
+                    if (CosViaVectors(Fig.normals[Fig.normal[max]], Cam) > 0)
+                    {
+                        Point[] poli = new Point[Fig.surface[max].Count];
+                        for (int j = 0; j < Fig.surface[max].Count; j++)
+                        {
+                            poli[j] = pict[Fig.surface[max][j]];
+                        }
+                        cosVal = (CosViaVectors(SunVetor, Fig.normals[Fig.normal[max]]) + 1) / 2;
+                        brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(Fig.color.R * cosVal), Convert.ToInt16(Fig.color.G * cosVal), Convert.ToInt16(Fig.color.B * cosVal)));
+                        graphic.Graphics.FillPolygon(brushForColor, poli);
+                        graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
+                        //graphic.Render(); //for debugging
+                        Array.Clear(poli, 0, Fig.surface[max].Count);
+                    }
+                }
+                distances.Clear();
+                graphic.Render();
+                frapsPerSec += 1;
+                painting_completed = true;
+                Thread.Sleep(0);
+                if (is_Loading)
+                {
+                    LoadFigTHR.Start();
+                    break;
                 }
             }
-            
-            graphic.Render();
-            frapsPerSec += 1;
-            painting_completed = true;
-            return true;
         }
 
         private double DistanceTo(Point3d point3d1, Point3d point3d2)
