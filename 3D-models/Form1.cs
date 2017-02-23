@@ -15,7 +15,7 @@ namespace _3D_models
         private BufferedGraphics graphic;
         private BufferedGraphicsContext context;
         int camZ = 2, camDepth = 200, centerX, centerY;                                        //Важные переменные
-        bool painting_completed = true, is_Loading=false, size_Changed=false; 
+        bool painting_completed = true, is_Loading=false, Res_to_full = false; 
         int frapsPerSec = 0;
         Figure Fig = new Figure(), Fig_Or;
         private char rotationAxis = 'x';
@@ -24,6 +24,7 @@ namespace _3D_models
         public Thread PaintTHR;
         public Thread RotationTHR;
         public Thread LoadFigTHR;
+        public Thread Resizing = null;
         /////////////////////////////////////////
         public Form1()
         {
@@ -31,7 +32,6 @@ namespace _3D_models
             context = BufferedGraphicsManager.Current;
             graphic = context.Allocate(this.CreateGraphics(), new Rectangle(0, 0, this.Width, this.Height));
         }
-       // TODO:  Добавить массив нормалей для поверхностей
         public class Figure
         {
             public List<List<int>> surface;
@@ -56,10 +56,18 @@ namespace _3D_models
                 for(i =0; i<f.surface.Count(); i++)
                 {
                     surface.Add(new List<int>());
-                    surface[i].AddRange(f.surface[i]);
+                    for (j = 0; j < f.surface[i].Count(); j++)
+                    {
+                        surface[i].Add(new int());
+                        surface[i][j] = f.surface[i][j];
+                    }
                 }
                 normal = new List<int>();
-                normal.AddRange(f.normal);
+                for (i = 0; i < f.normal.Count(); i++)
+                {
+                    normal.Add(new int());
+                    normal[i] = f.normal[i];
+                }
                 coords = new List<Point3d>();
                 for (i = 0; i < f.coords.Count(); i++)
                 {
@@ -141,10 +149,13 @@ namespace _3D_models
             Fig_Or = new Figure(Fig);
             PaintTHR = new Thread(Painting);
             RotationTHR = new Thread(Rotation);
-            Thread LoadFigTHR = new Thread(LoadFig);
+            LoadFigTHR = new Thread(LoadFig);
+            Resizing = new Thread(Resize_graphics);
             LoadFigTHR.SetApartmentState(ApartmentState.STA);
             PaintTHR.Start();
             RotationTHR.Start();
+            LoadFigTHR.Start();
+           // Resizing.Start();
             timer1.Enabled = true;
         }
 
@@ -155,22 +166,32 @@ namespace _3D_models
         
         private void Form1_Resize(object sender, EventArgs e)
         {
-            Thread Resizing = new Thread(Resize_graphics);
-            Resizing.Start();
         }
 
         private void Resize_graphics()
         {
-            centerX = Convert.ToInt32(Width / 2);
-            centerY = Convert.ToInt32(Height / 2);
-            context.MaximumBuffer = new Size(this.Width + 1, this.Height + 1);
-            if (graphic != null)
+            while (true)
             {
-                graphic.Dispose();
-                graphic = null;
+                while (PaintTHR.ThreadState == ThreadState.Running && !Res_to_full) Thread.Sleep(0);
+                if (Res_to_full)
+                {
+                    Form1.ActiveForm.WindowState = FormWindowState.Maximized;
+                    /* 
+                    Form1.ActiveForm.Height = Screen.PrimaryScreen.Bounds.Height-20;
+                    Form1.ActiveForm.Width = Screen.PrimaryScreen.Bounds.Width-5;
+                    */
+                }
+                else Form1.ActiveForm.WindowState = FormWindowState.Normal;
+                centerX = Convert.ToInt32(Width / 2);
+                centerY = Convert.ToInt32(Height / 2);
+                context.MaximumBuffer = new Size(this.Width + 1, this.Height + 1);
+                if (graphic != null)
+                {
+                    graphic.Dispose();
+                    graphic = null;
+                }
+                graphic = context.Allocate(this.CreateGraphics(), new Rectangle(0, 0, this.Width, this.Height));
             }
-            graphic = context.Allocate(this.CreateGraphics(), new Rectangle(0, 0, this.Width, this.Height));
-            Thread.Sleep(0);
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
@@ -234,6 +255,41 @@ namespace _3D_models
             rotationSpeed = 0;
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if (button1.Text == "FULL SCREEN")
+            {
+                Res_to_full = true;
+                button1.Text = "REDUCE SCREEN";
+            }
+            else
+            {
+                Res_to_full = false;
+                button1.Text = "FULL SCREEN";
+            }
+            while (PaintTHR.ThreadState == ThreadState.Running) ;
+            PaintTHR.Suspend();
+            if (Res_to_full)
+            {
+                Form1.ActiveForm.WindowState = FormWindowState.Maximized;
+                /* 
+                Form1.ActiveForm.Height = Screen.PrimaryScreen.Bounds.Height-20;
+                Form1.ActiveForm.Width = Screen.PrimaryScreen.Bounds.Width-5;
+                */
+            }
+            else Form1.ActiveForm.WindowState = FormWindowState.Normal;
+            centerX = Convert.ToInt32(Width / 2);
+            centerY = Convert.ToInt32(Height / 2);
+            context.MaximumBuffer = new Size(this.Width + 1, this.Height + 1);
+            if (graphic != null)
+            {
+                graphic.Dispose();
+                graphic = null;
+            }
+            graphic = context.Allocate(this.CreateGraphics(), new Rectangle(0, 0, this.Width, this.Height));
+            PaintTHR.Resume();
+        }
+
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MessageBox.Show("Autor: Shevchenko I.D. (Zeruk) 2017 \nMailTo: id.shev@yandex.ru");
@@ -243,160 +299,176 @@ namespace _3D_models
         {
             PaintTHR.Abort();
             RotationTHR.Abort();
+            LoadFigTHR.Abort();
+            Resizing.Abort();
         }
 
         private void LoadFig()
         {
-            PaintTHR.Suspend();
-            RotationTHR.Suspend();
-            rotationAxis = 'l';
-            openFileDialog1.Title = "Выберите файл";
-            openFileDialog1.Multiselect = false;
-            if (openFileDialog1.ShowDialog() == DialogResult.OK)
+            while (true)
             {
-                Fig.coords.Clear();
-                Fig.normals.Clear();
-                for(int iii = 0; iii < Fig.surface.Count; iii++)
+                if (is_Loading)
                 {
-                    Fig.surface[iii].Clear();
-                }
-                Fig.surface.Clear();
-                string first, s;
-                int i;// ,ncoord = 0, nsurf = 0, nnsurf;
-                StreamReader inStream = new StreamReader(openFileDialog1.FileName);
-                while (!inStream.EndOfStream)
-                {
-                    s = inStream.ReadLine();
-                    first = "";
-                    i = 0;// nnsurf = 0;
-                    while (i < s.Length && s[i] != ' ')
+                    while (PaintTHR.ThreadState == ThreadState.Running || RotationTHR.ThreadState == ThreadState.Running) { Thread.Sleep(0); }
+                    PaintTHR.Suspend();
+                    RotationTHR.Suspend();
+                    rotationAxis = 'l';
+                    openFileDialog1.Title = "Выберите файл";
+                    openFileDialog1.Multiselect = false;
+                    if (openFileDialog1.ShowDialog() == DialogResult.OK)
                     {
-                        first += s[i];
-                        i++;
-                    }
-                    if(first != "#"){
-                        switch (first)
+                        Fig.coords.Clear();
+                        Fig.normals.Clear();
+                        for (int iii = 0; iii < Fig.surface.Count; iii++)
                         {
-                            case "v": {
-                                    //x
-                                    first = "";
-                                    i = 2;
-                                    while (i < s.Length && s[i] != ' ')
-                                    {
-                                        first += s[i];
-                                        i++;
-                                    }
-                                    Fig.coords.Add(new Point3d());
-                                    Fig.coords[Fig.coords.Count-1].x = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);//[ncoord]
-                                    //y
-                                    first = ""; i++;
-                                    while (i < s.Length && s[i] != ' ')
-                                    {
-                                        first += s[i];
-                                        i++;
-                                    }
-                                    Fig.coords[Fig.coords.Count - 1].y = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
-                                    //z
-                                    first = ""; i++;
-                                    while (i < s.Length && s[i] != ' ')
-                                    {
-                                        first += s[i];
-                                        i++;
-                                    }
-                                    Fig.coords[Fig.coords.Count - 1].z = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
-                                    //ncoord++;
-                                    break;
-                                }
-                            //TODO:запись нормали (DONE)
-                            case "vn":{
-                                    //x
-                                    first = "";
-                                    i = 3;
-                                    while (i < s.Length && s[i] != ' ')
-                                    {
-                                        first += s[i];
-                                        i++;
-                                    }
-                                    Fig.normals.Add(new Point3d());
-                                    Fig.normals[Fig.normals.Count - 1].x = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
-                                    //y
-                                    first = ""; i++;
-                                    while (i < s.Length && s[i] != ' ')
-                                    {
-                                        first += s[i];
-                                        i++;
-                                    }
-                                    Fig.normals[Fig.normals.Count - 1].y = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
-                                    //z
-                                    first = ""; i++;
-                                    while (i < s.Length && s[i] != ' ')
-                                    {
-                                        first += s[i];
-                                        i++;
-                                    }
-                                    Fig.normals[Fig.normals.Count - 1].z = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
-                                    //ncoord++;
-                                    break;
-                                }
-                            case "f": {
-                                    i = 0; int j;
-                                    Fig.surface.Add(new List<int>());
-                                    Fig.normal.Add(new int());
-                                    while (i < s.Length)
-                                    {
-                                        if (s[i] == ' ' || i==s.Length-1)
-                                        {
-                                            if (i == s.Length - 1) first += s[i];
-                                            if (first.Contains("//"))
-                                            {
-                                                j = -1; 
-                                                while (first[++j] != '/');
-                                                Fig.surface[Fig.surface.Count-1].Add(new int());
-                                                Fig.surface[Fig.surface.Count - 1][Fig.surface[Fig.surface.Count - 1].Count - 1] = -1 + Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
-                                                Fig.normal[Fig.surface.Count - 1]  = Convert.ToInt32(first.Substring(j + 2))-1;
-                                                first = "";
-                                                i++;
-                                            }
-                                            // для случая 1/1/1
-                                            else if (first.Contains('/'))
-                                            {
-                                                j = -1;
-                                                while (first[++j] != '/' && j < first.Length) ;
-                                                Fig.surface[Fig.surface.Count - 1].Add(new int());
-                                                Fig.surface[Fig.surface.Count - 1][Fig.surface[Fig.surface.Count - 1].Count - 1] =-1+ Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
-                                                while (first[++j] != '/') ;
-                                                Fig.normal[Fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1))-1;
-                                                first = "";
-                                                i++;
-                                            }
-                                            else
-                                            {
-                                                first = "";
-                                                i++;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            first += s[i];
-                                            i++;
-                                        }
-                                    }
-                                    break;
-                                }
-
-                            default:
-                                break;
+                            Fig.surface[iii].Clear();
                         }
+                        Fig.surface.Clear();
+                        string first, s;
+                        int i;// ,ncoord = 0, nsurf = 0, nnsurf;
+                        StreamReader inStream = new StreamReader(openFileDialog1.FileName);
+                        while (!inStream.EndOfStream)
+                        {
+                            s = inStream.ReadLine();
+                            first = "";
+                            i = 0;// nnsurf = 0;
+                            while (i < s.Length && s[i] != ' ')
+                            {
+                                first += s[i];
+                                i++;
+                            }
+                            if (first != "#")
+                            {
+                                switch (first)
+                                {
+                                    case "v":
+                                        {
+                                            //x
+                                            first = "";
+                                            i = 2;
+                                            while (i < s.Length && s[i] != ' ')
+                                            {
+                                                first += s[i];
+                                                i++;
+                                            }
+                                            Fig.coords.Add(new Point3d());
+                                            Fig.coords[Fig.coords.Count - 1].x = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);//[ncoord]
+                                                                                                                                                            //y
+                                            first = ""; i++;
+                                            while (i < s.Length && s[i] != ' ')
+                                            {
+                                                first += s[i];
+                                                i++;
+                                            }
+                                            Fig.coords[Fig.coords.Count - 1].y = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                            //z
+                                            first = ""; i++;
+                                            while (i < s.Length && s[i] != ' ')
+                                            {
+                                                first += s[i];
+                                                i++;
+                                            }
+                                            Fig.coords[Fig.coords.Count - 1].z = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                            //ncoord++;
+                                            break;
+                                        }
+                                    //TODO:запись нормали (DONE)
+                                    case "vn":
+                                        {
+                                            //x
+                                            first = "";
+                                            i = 3;
+                                            while (i < s.Length && s[i] != ' ')
+                                            {
+                                                first += s[i];
+                                                i++;
+                                            }
+                                            Fig.normals.Add(new Point3d());
+                                            Fig.normals[Fig.normals.Count - 1].x = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                            //y
+                                            first = ""; i++;
+                                            while (i < s.Length && s[i] != ' ')
+                                            {
+                                                first += s[i];
+                                                i++;
+                                            }
+                                            Fig.normals[Fig.normals.Count - 1].y = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                            //z
+                                            first = ""; i++;
+                                            while (i < s.Length && s[i] != ' ')
+                                            {
+                                                first += s[i];
+                                                i++;
+                                            }
+                                            Fig.normals[Fig.normals.Count - 1].z = Convert.ToDouble(first, System.Globalization.CultureInfo.InvariantCulture);
+                                            //ncoord++;
+                                            break;
+                                        }
+                                    case "f":
+                                        {
+                                            i = 0; int j;
+                                            Fig.surface.Add(new List<int>());
+                                            Fig.normal.Add(new int());
+                                            while (i < s.Length)
+                                            {
+                                                if (s[i] == ' ' || i == s.Length - 1)
+                                                {
+                                                    if (i == s.Length - 1) first += s[i];
+                                                    if (first.Contains("//"))
+                                                    {
+                                                        j = -1;
+                                                        while (first[++j] != '/') ;
+                                                        Fig.surface[Fig.surface.Count - 1].Add(new int());
+                                                        Fig.surface[Fig.surface.Count - 1][Fig.surface[Fig.surface.Count - 1].Count - 1] = -1 + Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
+                                                        Fig.normal[Fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 2)) - 1;
+                                                        first = "";
+                                                        i++;
+                                                    }
+                                                    // для случая 1/1/1
+                                                    else if (first.Contains('/'))
+                                                    {
+                                                        j = -1;
+                                                        while (first[++j] != '/' && j < first.Length) ;
+                                                        Fig.surface[Fig.surface.Count - 1].Add(new int());
+                                                        Fig.surface[Fig.surface.Count - 1][Fig.surface[Fig.surface.Count - 1].Count - 1] = -1 + Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
+                                                        while (first[++j] != '/') ;
+                                                        Fig.normal[Fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1)) - 1;
+                                                        first = "";
+                                                        i++;
+                                                    }
+                                                    else
+                                                    {
+                                                        first = "";
+                                                        i++;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    first += s[i];
+                                                    i++;
+                                                }
+                                            }
+                                            break;
+                                        }
+
+                                    default:
+                                        break;
+                                }
+                            }
+                        }
+                        inStream.Close();
+                        Fig_Or = new Figure(Fig);
                     }
+                    PaintTHR.Resume();
+                    RotationTHR.Resume();
+                    is_Loading = false;
+                    timer1.Enabled = true;
+                    radioButton1.Checked = false;
+                    radioButton2.Checked = false;
+                    radioButton3.Checked = false;
                 }
-                inStream.Close();
-                Fig_Or = new Figure(Fig);
+                Thread.Sleep(0);
             }
-            PaintTHR.Resume();
-            RotationTHR.Resume();
-            is_Loading = false;
-            timer1.Enabled = true;
-            Thread.Sleep(0);
         }
 
         private void Rotation()
@@ -464,7 +536,7 @@ namespace _3D_models
                     }
                     
                 }
-                Thread.Sleep(20);
+                Thread.Sleep(5);
             }
         }
 
@@ -472,72 +544,69 @@ namespace _3D_models
         {
             while (true)
             {
-
-                int i = 0;
-                double cosVal = 0;
-                Brush brushForColor;
-                Point[] pict = new Point[Fig.coords.Count];//, poli = new Point[fig.coords.Count];
-                for (i = 0; i < Fig.coords.Count; i++)
-                {
-                    pict[i].X = Convert.ToInt32(Fig.coords[i].x / (Fig.coords[i].z + camZ) * camDepth) + centerX;
-                    pict[i].Y = Convert.ToInt32(Fig.coords[i].y / (Fig.coords[i].z + camZ) * camDepth) + centerY;
-                }
-                graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
-                List<double> distances = new List<double>();
-                for (i = 0; i < Fig.surface.Count; i++)
-                {
-                    distances.Add(new double());
-                    for (int j = 0; j < Fig.surface[i].Count; j++)
+                while (LoadFigTHR.ThreadState == ThreadState.Running || Resizing.ThreadState == ThreadState.Running) ;
+                    Figure Figu = new Figure(Fig);
+                    int i = 0;
+                    double cosVal = 0;
+                    Brush brushForColor;
+                    Point[] pict = new Point[Figu.coords.Count];//, poli = new Point[fig.coords.Count];
+                    for (i = 0; i < Figu.coords.Count; i++)
                     {
-                        distances[i] += DistanceTo(Cam, Fig.coords[Fig.surface[i][j]]);
+                        pict[i].X = Convert.ToInt32(Figu.coords[i].x / (Figu.coords[i].z + camZ) * camDepth) + centerX;
+                        pict[i].Y = Convert.ToInt32(Figu.coords[i].y / (Figu.coords[i].z + camZ) * camDepth) + centerY;
                     }
-                }
-                int max = -1;
-                List<int> been = new List<int>();
-                for (int n = 0; n < Fig.surface.Count; n++)
-                {
-                    max = -1;
-                    for (i = 0; i < Fig.surface.Count; i++)
+                    graphic.Graphics.FillRectangle(Brushes.Azure, 0, 0, Width, Height);
+                    List<double> distances = new List<double>();
+                    for (i = 0; i < Figu.surface.Count; i++)
                     {
-                        if ((max == -1 || distances[max] < distances[i]) && (!been.Contains(i)))
+                        distances.Add(new double());
+                        for (int j = 0; j < Figu.surface[i].Count; j++)
                         {
-                            max = i;
+                            distances[i] += DistanceTo(Cam, Figu.coords[Figu.surface[i][j]]);
                         }
                     }
-                    been.Add(new int());
-                    been[been.Count - 1] = max;
-                    double d = CosViaVectors(Fig.normals[Fig.normal[max]], Cam);
-                    if (CosViaVectors(Fig.normals[Fig.normal[max]], Cam) > 0)
+                    int max = -1;
+                    List<int> been = new List<int>();
+                    for (int n = 0; n < Figu.surface.Count; n++)
                     {
-                        Point[] poli = new Point[Fig.surface[max].Count];
-                        for (int j = 0; j < Fig.surface[max].Count; j++)
+                        max = -1;
+                        for (i = 0; i < Figu.surface.Count; i++)
                         {
-                            poli[j] = pict[Fig.surface[max][j]];
+                            if ((max == -1 || distances[max] < distances[i]) && (!been.Contains(i)))
+                            {
+                                max = i;
+                            }
                         }
-                        cosVal = (CosViaVectors(SunVetor, Fig.normals[Fig.normal[max]]) + 1) / 2;
-                        brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(Fig.color.R * cosVal), Convert.ToInt16(Fig.color.G * cosVal), Convert.ToInt16(Fig.color.B * cosVal)));
-                        graphic.Graphics.FillPolygon(brushForColor, poli);
-                        graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
-                        //graphic.Render(); //for debugging
-                        Array.Clear(poli, 0, Fig.surface[max].Count);
+                        been.Add(new int());
+                        been[been.Count - 1] = max;
+                        double d = CosViaVectors(Figu.normals[Figu.normal[max]], Cam);
+                        if (CosViaVectors(Figu.normals[Figu.normal[max]], Cam) > 0)
+                        {
+                            Point[] poli = new Point[Figu.surface[max].Count];
+                            for (int j = 0; j < Figu.surface[max].Count; j++)
+                            {
+                                poli[j] = pict[Figu.surface[max][j]];
+                            }
+                            cosVal = (CosViaVectors(SunVetor, Figu.normals[Figu.normal[max]]) + 1) / 2;
+                            brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(Figu.color.R * cosVal), Convert.ToInt16(Figu.color.G * cosVal), Convert.ToInt16(Figu.color.B * cosVal)));
+                            graphic.Graphics.FillPolygon(brushForColor, poli);
+                            //graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
+                            //graphic.Render(); //for debugging
+                            Array.Clear(poli, 0, Figu.surface[max].Count);
+                            distances.Clear();
+                        }
                     }
-                }
-                distances.Clear();
-                graphic.Render();
-                frapsPerSec += 1;
-                painting_completed = true;
+                    graphic.Render();
+                    frapsPerSec += 1;
+                    painting_completed = true;
                 Thread.Sleep(0);
-                if (is_Loading)
-                {
-                    LoadFigTHR.Start();
-                    break;
-                }
             }
         }
 
         private double DistanceTo(Point3d point3d1, Point3d point3d2)
         {
-            return /*Math.Sqrt(*/(point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z);
+            return /*Math.Sqrt(*/
+                    (point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z);
             //throw new NotImplementedException();
         }
 
