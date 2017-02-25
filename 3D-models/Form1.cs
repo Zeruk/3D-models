@@ -522,6 +522,7 @@ namespace _3D_models
                                 {
                                     for (int i = 0; i < Fig_Or.coords.Count; i++)
                                     {
+<<<<<<< HEAD
                                         Fig.coords[i].x = Fig_Or.coords[i].x * Math.Cos(angle) - Fig_Or.coords[i].y * Math.Sin(angle);
                                         Fig.coords[i].y = Fig_Or.coords[i].y * Math.Cos(angle) + Fig_Or.coords[i].x * Math.Sin(angle);
                                     }
@@ -529,6 +530,45 @@ namespace _3D_models
                                     {
                                         Fig.normals[i].x = Fig_Or.normals[i].x * Math.Cos(angle) - Fig_Or.normals[i].y * Math.Sin(angle);
                                         Fig.normals[i].y = Fig_Or.normals[i].y * Math.Cos(angle) + Fig_Or.normals[i].x * Math.Sin(angle);
+=======
+                                        if (s[i] == ' ' || i==s.Length-1)
+                                        {
+                                            if (i == s.Length - 1) first += s[i];
+                                            if (first.Contains("//"))
+                                            {
+                                                j = -1; 
+                                                while (first[++j] != '/');
+                                                fig.surface[fig.surface.Count-1].Add(new int());
+                                                fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] = -1 + Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
+                                                fig.normal[fig.surface.Count - 1]  = Convert.ToInt32(first.Substring(j + 2))-1;
+                                                first = "";
+                                                i++;
+                                            }
+                                            // для случая 1/1/1
+                                            else if (first.Contains('/'))
+                                            {
+                                                j = -1;
+                                                while (first[++j] != '/' && j < first.Length) ;
+                                                fig.surface[fig.surface.Count - 1].Add(new int());
+                                                fig.surface[fig.surface.Count - 1][fig.surface[fig.surface.Count - 1].Count - 1] =-1+ Convert.ToInt32(first.Substring(0, j), System.Globalization.CultureInfo.InvariantCulture);
+                                                j = -1;
+                                                while (first[++j] != '/') ;
+                                                fig.normal[fig.surface.Count - 1] = Convert.ToInt32(first.Substring(j + 1))-1;
+                                                first = "";
+                                                i++;
+                                            }
+                                            else
+                                            {
+                                                first = "";
+                                                i++;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            first += s[i];
+                                            i++;
+                                        }
+>>>>>>> parent of f92935c... Исправлена ошибка при чтении некоторых файлов
                                     }
                                     break;
                                 }
