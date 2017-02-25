@@ -22,7 +22,7 @@ namespace _3D_models
         private double rotationSpeed = 0;
         Point3d Cam = new Point3d(0, 0, -2), SunVetor = new Point3d(0, -1, 0);
 
-        /////////////////////////////////////////
+        ///////////////////////////////////// ////
         public Form1()
         {
             InitializeComponent();
