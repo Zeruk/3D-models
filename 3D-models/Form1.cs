@@ -255,6 +255,7 @@ namespace _3D_models
             rotationSpeed = 0;
         }
 
+<<<<<<< HEAD
         private void button1_Click(object sender, EventArgs e)
         {
             if (button1.Text == "FULL SCREEN")
@@ -304,6 +305,9 @@ namespace _3D_models
         }
 
         private void LoadFig()
+=======
+        private bool LoadFig(Figure fig)
+>>>>>>> parent of c079642... Авторство
         {
             while (true)
             {
