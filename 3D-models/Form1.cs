@@ -254,9 +254,7 @@ namespace _3D_models
         {
             rotationSpeed = 0;
         }
-
-<<<<<<< HEAD
-<<<<<<< HEAD
+        
         private void button1_Click(object sender, EventArgs e)
         {
             if (button1.Text == "FULL SCREEN")
@@ -304,13 +302,8 @@ namespace _3D_models
             LoadFigTHR.Abort();
             Resizing.Abort();
         }
-
+        
         private void LoadFig()
-=======
-=======
->>>>>>> parent of c079642... Авторство
-        private bool LoadFig(Figure fig)
->>>>>>> parent of c079642... Авторство
         {
             while (true)
             {
