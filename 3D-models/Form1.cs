@@ -10,7 +10,8 @@ namespace _3D_models
     {
         private BufferedGraphics graphic;
         private BufferedGraphicsContext context;
-        int camZ = 2, camDepth = 200, centerX, centerY;                                        //Важные переменные
+        int camZoom = 200, centerX, centerY;                                        //Важные переменные
+        double camZ = 2;
         bool painting_completed = true, is_Loading=false; 
         int frapsPerSec = 0;
         Figure Fig = new Figure();
@@ -143,7 +144,7 @@ namespace _3D_models
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
         {
-            camZ = Convert.ToInt32(numericUpDown1.Value);
+            camZ = Convert.ToDouble(numericUpDown1.Value);
         }
 
         private void radioButton1_CheckedChanged(object sender, EventArgs e)
@@ -345,6 +346,16 @@ namespace _3D_models
             return true;
         }
 
+        private void label4_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void numericUpDown3_ValueChanged(object sender, EventArgs e)
+        {
+            camZoom = (int)numericUpDown3.Value;
+        }
+
         private void Rotation(char vector, double angle, Figure fig)
         {
             if (angle != 0)
@@ -407,8 +418,10 @@ namespace _3D_models
             Point[] pict = new Point[fig.coords.Count];//, poli = new Point[fig.coords.Count];
             for (i = 0; i < fig.coords.Count; i++)
             {
-                pict[i].X = Convert.ToInt32(fig.coords[i].x / (fig.coords[i].z + camZ) * camDepth)+centerX;
-                pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camDepth)+centerY;
+                //pict[i].X = Convert.ToInt32(fig.coords[i].x / (fig.coords[i].z + camZ) * camDepth)+centerX;
+                //pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camDepth)+centerY;
+                pict[i].X = Convert.ToInt32(fig.coords[i].x / (fig.coords[i].z + camZ) * camZ*camZoom)+centerX;
+                pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camZ*camZoom)+centerY;
             }
             graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
             //сделать нахождение дистанций после определения видимости? Решениие:Нет
@@ -436,7 +449,7 @@ namespace _3D_models
                 max = -1;
                 for (i = 0; i < fig.surface.Count; i++)
                 {
-                    if ((max == -1 || distances[max] < distances[i]) && (!been.Contains(i)))
+                    if ((max == -1 || distances[max] <= distances[i]) && (!been.Contains(i)))
                     {
                         max = i;
                     }
@@ -444,8 +457,8 @@ namespace _3D_models
                 been.Add(new int());
                 been[been.Count - 1] = max;
                 double d = CosViaVectors(fig.normals[fig.normal[max]], Cam);
-                if (CosViaVectors(fig.normals[fig.normal[max]],Cam) > 0)
-                {
+               // if (CosViaVectors(fig.normals[fig.normal[max]],Cam) > 0)
+               // {
                     Point[] poli = new Point[fig.surface[max].Count];
                     for (int j = 0; j < fig.surface[max].Count; j++)
                     {
@@ -457,7 +470,7 @@ namespace _3D_models
                    // graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
                     //graphic.Render(); //for debugging
                     Array.Clear(poli, 0, fig.surface[max].Count);
-                }
+               // }
             }
             
             graphic.Render();
