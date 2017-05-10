@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 namespace _3D_models
 {
@@ -35,8 +31,6 @@ namespace _3D_models
             public List<List<int>> surface;
             public List<int> normal;//соответствие нормалей и поверхностей
             public List<Point3d> coords,normals;
-            public Brush upbrush;
-            public Brush downbrush;
             public Color color;
 
             public Figure()
@@ -433,6 +427,7 @@ namespace _3D_models
                 {
                     distances[i] += DistanceTo(Cam, fig.coords[fig.surface[i][j]]);
                 }
+                distances[i] /= fig.surface[i].Count;
             }
             int max = -1;
             List<int> been = new List<int>();
@@ -459,7 +454,7 @@ namespace _3D_models
                     cosVal = (CosViaVectors(SunVetor, fig.normals[fig.normal[max]])+1)/2;
                     brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(fig.color.R * cosVal), Convert.ToInt16(fig.color.G * cosVal), Convert.ToInt16(fig.color.B * cosVal)));
                     graphic.Graphics.FillPolygon(brushForColor, poli);
-                    graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
+                   // graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
                     //graphic.Render(); //for debugging
                     Array.Clear(poli, 0, fig.surface[max].Count);
                 }
