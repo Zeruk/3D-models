@@ -426,27 +426,30 @@ namespace _3D_models
             graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
             //сделать нахождение дистанций после определения видимости? Решениие:Нет
             double[] distances = new double[fig.surface.Count];
-            //Point3d averageP = new Point3d();
+            Point3d averageP = new Point3d();
             for(i = 0; i< fig.surface.Count; i++)
             {
-                /* averageP.x = averageP.y = averageP.z = 0; //Получается неправильное отображение. Почему? непонятно
+                 averageP.x = averageP.y = averageP.z = 0; //Получается неправильное отображение. Почему? непонятно
                  for (int j = 0; j < fig.surface[i].Count; j++)
                  {
                      averageP += fig.coords[fig.surface[i][j]];
-                 }*/
-                // distances[i] += DistanceTo();
-                //distances[i] /= fig.surface[i].Count;
-                for (int j = 0; j < fig.surface[i].Count; j++)
+                 }
+                averageP.x /= fig.surface[i].Count;
+                averageP.y /= fig.surface[i].Count;
+                averageP.z /= fig.surface[i].Count;
+                distances[i] = DistanceTo(Cam,averageP);
+                /*for (int j = 0; j < fig.surface[i].Count; j++)
                 {
                     distances[i] += DistanceTo(Cam, fig.coords[fig.surface[i][j]]);
                 }
-                distances[i] /= fig.surface[i].Count;
+                distances[i] /= fig.surface[i].Count;*/
             }
             int max = -1;
             List<int> been = new List<int>();
+            
             for (int n=0; n < fig.surface.Count; n++)
             {
-                max = -1;
+                    max = -1;
                 for (i = 0; i < fig.surface.Count; i++)
                 {
                     if ((max == -1 || distances[max] <= distances[i]) && (!been.Contains(i)))
@@ -467,8 +470,8 @@ namespace _3D_models
                     cosVal = (CosViaVectors(SunVetor, fig.normals[fig.normal[max]])+1)/2;
                     brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(fig.color.R * cosVal), Convert.ToInt16(fig.color.G * cosVal), Convert.ToInt16(fig.color.B * cosVal)));
                     graphic.Graphics.FillPolygon(brushForColor, poli);
-                   // graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
-                    //graphic.Render(); //for debugging
+                    graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
+                    graphic.Render(); //for debugging
                     Array.Clear(poli, 0, fig.surface[max].Count);
                // }
             }
@@ -481,7 +484,7 @@ namespace _3D_models
 
         private double DistanceTo(Point3d point3d1, Point3d point3d2)
         {
-            return /*Math.Sqrt(*/(point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z);
+            return ((point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z));
             //throw new NotImplementedException();
         }
 
