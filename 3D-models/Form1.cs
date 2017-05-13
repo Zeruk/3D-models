@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 namespace _3D_models
 {
@@ -10,16 +14,15 @@ namespace _3D_models
     {
         private BufferedGraphics graphic;
         private BufferedGraphicsContext context;
-        int camZoom = 200, centerX, centerY;                                        //Важные переменные
-        double camZ = 2;
+        int camZ = 2, camDepth = 200, centerX, centerY;                                        //Важные переменные
         bool painting_completed = true, is_Loading=false; 
         int frapsPerSec = 0;
-        Figure Fig = new Figure();
-        private char rotationAxis = 'x';
-        private double rotationSpeed = 0;
-        Point3d Cam = new Point3d(0, 0, -2), SunVetor = new Point3d(0, -1, 0);
+        Figure Fig = new Figure(),Fig_Or;
+        private char rotationAxis = 'x', lastDir='x';
+        private double rotationSpeed = 0,angle;
+        Point3d Cam = new Point3d(0, 0, -2), SunVetor = new Point3d(0, 1, 0);
 
-        ///////////////////////////////////// ////
+        /////////////////////////////////////////
         public Form1()
         {
             InitializeComponent();
@@ -32,6 +35,8 @@ namespace _3D_models
             public List<List<int>> surface;
             public List<int> normal;//соответствие нормалей и поверхностей
             public List<Point3d> coords,normals;
+            public Brush upbrush;
+            public Brush downbrush;
             public Color color;
 
             public Figure()
@@ -40,6 +45,38 @@ namespace _3D_models
                 normal = new List<int>();
                 coords = new List<Point3d>();
                 normals = new List<Point3d>();
+                color = Color.Bisque;
+            }
+
+            public Figure(Figure f)
+            {
+                int i, j;
+                surface = new List<List<int>>();
+                for (i = 0; i < f.surface.Count(); i++)
+                {
+                    surface.Add(new List<int>());
+                    for (j = 0; j < f.surface[i].Count(); j++)
+                    {
+                        surface[i].Add(new int());
+                        surface[i][j] = f.surface[i][j];
+                    }
+                }
+                normal = new List<int>();
+                for (i = 0; i < f.normal.Count(); i++)
+                {
+                    normal.Add(new int());
+                    normal[i] = f.normal[i];
+                }
+                coords = new List<Point3d>();
+                for (i = 0; i < f.coords.Count(); i++)
+                {
+                    coords.Add(new Point3d(f.coords[i]));
+                }
+                normals = new List<Point3d>();
+                for (i = 0; i < f.normals.Count(); i++)
+                {
+                    normals.Add(new Point3d(f.normals[i]));
+                }
                 color = Color.Bisque;
             }
         }
@@ -58,6 +95,13 @@ namespace _3D_models
                 x = 0;
                 y = 0;
                 z = 0;
+            }
+
+            public Point3d(Point3d P)
+            {
+                x = P.x;
+                y = P.y;
+                z = P.z;
             }
 
             public static Point3d operator +(Point3d a, Point3d b)
@@ -101,6 +145,8 @@ namespace _3D_models
             Fig.normal[0] = 0;
             Fig.normal.Add(new int());
             Fig.normal[1] = 1;
+            //***************************************
+            Fig_Or = new Figure(Fig);
             Painting(Fig);
             timer1.Enabled = true;
         }
@@ -144,7 +190,7 @@ namespace _3D_models
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
         {
-            camZ = Convert.ToDouble(numericUpDown1.Value);
+            camZ = Convert.ToInt32(numericUpDown1.Value);
         }
 
         private void radioButton1_CheckedChanged(object sender, EventArgs e)
@@ -341,118 +387,116 @@ namespace _3D_models
                 }
                 inStream.Close();
             }
+            Fig_Or = new Figure(Fig);
             is_Loading = false;
             timer1.Enabled = true; 
             return true;
         }
 
-        private void label4_Click(object sender, EventArgs e)
+        private void Rotation()
         {
-
-        }
-
-        private void numericUpDown3_ValueChanged(object sender, EventArgs e)
-        {
-            camZoom = (int)numericUpDown3.Value;
-        }
-
-        private void Rotation(char vector, double angle, Figure fig)
-        {
-            if (angle != 0)
+            if (rotationSpeed != 0)
             {
-                switch (vector)
+                
+                if (rotationAxis != lastDir)
                 {
-                    case 'x':
-                        {
-                            for (int i = 0; i < fig.coords.Count; i++)
-                            {
-                                fig.coords[i].y = fig.coords[i].y * Math.Cos(angle) + fig.coords[i].z * Math.Sin(angle);
-                                fig.coords[i].z = -fig.coords[i].y * Math.Sin(angle) + fig.coords[i].z * Math.Cos(angle);
-                            }
-                            for (int i = 0; i < fig.normals.Count; i++)
-                            {
-                                fig.normals[i].y = fig.normals[i].y * Math.Cos(angle) + fig.normals[i].z * Math.Sin(angle);
-                                fig.normals[i].z = -fig.normals[i].y * Math.Sin(angle) + fig.normals[i].z * Math.Cos(angle);
-                            }
-                            break;
-                        }
-                    case 'y':
-                        {
-                            for (int i = 0; i < fig.coords.Count; i++)
-                            {
-                                fig.coords[i].x = fig.coords[i].x * Math.Cos(angle) + fig.coords[i].z * Math.Sin(angle);
-                                fig.coords[i].z = -fig.coords[i].x * Math.Sin(angle) + fig.coords[i].z * Math.Cos(angle);
-                            }
-                            for (int i = 0; i < fig.normals.Count; i++)
-                            {
-                                fig.normals[i].x = (fig.normals[i].x * Math.Cos(angle)) + (fig.normals[i].z * Math.Sin(angle));
-                                fig.normals[i].z = (-fig.normals[i].x * Math.Sin(angle)) + (fig.normals[i].z * Math.Cos(angle));
-                            }
-                            break;
-                        }
-                    case 'z':
-                        {
-                            for (int i = 0; i < fig.coords.Count; i++)
-                            {
-                                fig.coords[i].x = fig.coords[i].x * Math.Cos(angle) - fig.coords[i].y * Math.Sin(angle);
-                                fig.coords[i].y = fig.coords[i].y * Math.Cos(angle) + fig.coords[i].x * Math.Sin(angle);
-                            }
-                            for (int i = 0; i < fig.normals.Count; i++)
-                            {
-                                fig.normals[i].x = fig.normals[i].x * Math.Cos(angle) - fig.normals[i].y * Math.Sin(angle);
-                                fig.normals[i].y = fig.normals[i].y * Math.Cos(angle) + fig.normals[i].x * Math.Sin(angle);
-                            }
-                            break;
-                        }
+                    Fig_Or = new Figure(Fig);
+
+                    lastDir = rotationAxis;
+                    angle = 0;
                 }
+                else
+                {
+                    angle += rotationSpeed;
+                    switch (rotationAxis)
+                    {
+                        case 'x':
+                            {
+                                for (int i = 0; i < Fig_Or.coords.Count; i++)
+                                {
+                                    Fig.coords[i].y = Fig_Or.coords[i].y * Math.Cos(angle) + Fig_Or.coords[i].z * Math.Sin(angle);
+                                    Fig.coords[i].z = -Fig_Or.coords[i].y * Math.Sin(angle) + Fig_Or.coords[i].z * Math.Cos(angle);
+                                }
+                                for (int i = 0; i < Fig_Or.normals.Count; i++)
+                                {
+                                    Fig.normals[i].y = Fig_Or.normals[i].y * Math.Cos(angle) + Fig_Or.normals[i].z * Math.Sin(angle);
+                                    Fig.normals[i].z = -Fig_Or.normals[i].y * Math.Sin(angle) + Fig_Or.normals[i].z * Math.Cos(angle);
+                                }
+                                break;
+                            }
+                        case 'y':
+                            {
+                                for (int i = 0; i < Fig_Or.coords.Count; i++)
+                                {
+                                    Fig.coords[i].x = Fig_Or.coords[i].x * Math.Cos(angle) + Fig_Or.coords[i].z * Math.Sin(angle);
+                                    Fig.coords[i].z = -Fig_Or.coords[i].x * Math.Sin(angle) + Fig_Or.coords[i].z * Math.Cos(angle);
+                                }
+                                for (int i = 0; i < Fig_Or.normals.Count; i++)
+                                {
+                                    Fig.normals[i].x = (Fig_Or.normals[i].x * Math.Cos(angle)) + (Fig_Or.normals[i].z * Math.Sin(angle));
+                                    Fig.normals[i].z = (-Fig_Or.normals[i].x * Math.Sin(angle)) + (Fig_Or.normals[i].z * Math.Cos(angle));
+                                }
+                                break;
+                            }
+                        case 'z':
+                            {
+                                for (int i = 0; i < Fig_Or.coords.Count; i++)
+                                {
+                                    Fig.coords[i].x = Fig_Or.coords[i].x * Math.Cos(angle) - Fig_Or.coords[i].y * Math.Sin(angle);
+                                    Fig.coords[i].y = Fig_Or.coords[i].y * Math.Cos(angle) + Fig_Or.coords[i].x * Math.Sin(angle);
+                                }
+                                for (int i = 0; i < Fig_Or.normals.Count; i++)
+                                {
+                                    Fig.normals[i].x = Fig_Or.normals[i].x * Math.Cos(angle) - Fig_Or.normals[i].y * Math.Sin(angle);
+                                    Fig.normals[i].y = Fig_Or.normals[i].y * Math.Cos(angle) + Fig_Or.normals[i].x * Math.Sin(angle);
+                                }
+                                break;
+                            }
+                    }
+                }
+
             }
         }
 
         private bool Painting(Figure fig)
         {
             //for (int i = 0; fig.count; i++) {
-            Rotation(rotationAxis, rotationSpeed,Fig);
+            Rotation();
             int i = 0;
             double cosVal = 0;
             Brush brushForColor;
             Point[] pict = new Point[fig.coords.Count];//, poli = new Point[fig.coords.Count];
             for (i = 0; i < fig.coords.Count; i++)
             {
-                //pict[i].X = Convert.ToInt32(fig.coords[i].x / (fig.coords[i].z + camZ) * camDepth)+centerX;
-                //pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camDepth)+centerY;
-                pict[i].X = Convert.ToInt32(fig.coords[i].x / (fig.coords[i].z + camZ) * camZ*camZoom)+centerX;
-                pict[i].Y = Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camZ*camZoom)+centerY;
+                pict[i].X = -Convert.ToInt32(fig.coords[i].x / (fig.coords[i].z + camZ) * camDepth)+centerX;
+                pict[i].Y = -Convert.ToInt32(fig.coords[i].y / (fig.coords[i].z + camZ) * camDepth)+centerY;
             }
             graphic.Graphics.FillRectangle(Brushes.White, 0, 0, Width, Height);
             //сделать нахождение дистанций после определения видимости? Решениие:Нет
             double[] distances = new double[fig.surface.Count];
-            Point3d averageP = new Point3d();
+            //Point3d averageP = new Point3d();
             for(i = 0; i< fig.surface.Count; i++)
             {
-                 averageP.x = averageP.y = averageP.z = 0; //Получается неправильное отображение. Почему? непонятно
+                /* averageP.x = averageP.y = averageP.z = 0; //Получается неправильное отображение. Почему? непонятно
                  for (int j = 0; j < fig.surface[i].Count; j++)
                  {
                      averageP += fig.coords[fig.surface[i][j]];
-                 }
-                averageP.x /= fig.surface[i].Count;
-                averageP.y /= fig.surface[i].Count;
-                averageP.z /= fig.surface[i].Count;
-                distances[i] = DistanceTo(Cam,averageP);
-                /*for (int j = 0; j < fig.surface[i].Count; j++)
+                 }*/
+                // distances[i] += DistanceTo();
+                //distances[i] /= fig.surface[i].Count;
+                for (int j = 0; j < fig.surface[i].Count; j++)
                 {
                     distances[i] += DistanceTo(Cam, fig.coords[fig.surface[i][j]]);
                 }
-                distances[i] /= fig.surface[i].Count;*/
             }
             int max = -1;
             List<int> been = new List<int>();
-            
             for (int n=0; n < fig.surface.Count; n++)
             {
-                    max = -1;
+                max = -1;
                 for (i = 0; i < fig.surface.Count; i++)
                 {
-                    if ((max == -1 || distances[max] <= distances[i]) && (!been.Contains(i)))
+                    if ((max == -1 || distances[max] < distances[i]) && (!been.Contains(i)))
                     {
                         max = i;
                     }
@@ -460,8 +504,8 @@ namespace _3D_models
                 been.Add(new int());
                 been[been.Count - 1] = max;
                 double d = CosViaVectors(fig.normals[fig.normal[max]], Cam);
-               // if (CosViaVectors(fig.normals[fig.normal[max]],Cam) > 0)
-               // {
+                if (CosViaVectors(fig.normals[fig.normal[max]],Cam) > 0)
+                {
                     Point[] poli = new Point[fig.surface[max].Count];
                     for (int j = 0; j < fig.surface[max].Count; j++)
                     {
@@ -471,9 +515,9 @@ namespace _3D_models
                     brushForColor = new SolidBrush(Color.FromArgb(Convert.ToInt16(fig.color.R * cosVal), Convert.ToInt16(fig.color.G * cosVal), Convert.ToInt16(fig.color.B * cosVal)));
                     graphic.Graphics.FillPolygon(brushForColor, poli);
                     graphic.Graphics.DrawPolygon(Pens.DarkGray, poli);
-                    graphic.Render(); //for debugging
+                    //graphic.Render(); //for debugging
                     Array.Clear(poli, 0, fig.surface[max].Count);
-               // }
+                }
             }
             
             graphic.Render();
@@ -484,7 +528,7 @@ namespace _3D_models
 
         private double DistanceTo(Point3d point3d1, Point3d point3d2)
         {
-            return ((point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z));
+            return /*Math.Sqrt(*/(point3d1.x - point3d2.x) * (point3d1.x - point3d2.x) + (point3d1.y - point3d2.y) * (point3d1.y - point3d2.y) + (point3d1.z - point3d2.z) * (point3d1.z - point3d2.z);
             //throw new NotImplementedException();
         }
 
